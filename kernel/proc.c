@@ -127,6 +127,8 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  p->syscall_trace = 0;         //创建新进程的时候，syscall_trace 设置为默认值0
+
   return p;
 }
 
@@ -296,6 +298,8 @@ fork(void)
   np->state = RUNNABLE;
 
   release(&np->lock);
+
+  np->syscall_trace = p->syscall_trace;      //子进程继承父进程的syscall_trace
 
   return pid;
 }
@@ -692,4 +696,20 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+// 统计处于活动状态的进程
+/*
+ * 有一个进程表struct proc proc[NPROC]，记录了所有的进程
+ * 每个进程都有一个state属性，表示该进程是否在使用
+ * 因此可以得出思路：遍历proc进程表，判断当前进程是否在使用，是的话数量+1
+ */
+void
+procnum(uint64* dst) {
+    *dst = 0;
+    struct proc* p;
+    for (p = proc;p < &proc[NPROC];p++) {
+        if (p->state != UNUSED)
+            (*dst)++;
+    }
 }

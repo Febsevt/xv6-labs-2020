@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -94,4 +95,36 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+// 当前进程的系统调用跟踪掩码
+uint64
+sys_trace(void)
+{
+    int mask;
+
+    if(argint(0, &mask) < 0)                // 获取用户程序传入的数据
+        return -1;
+
+    myproc()->syscall_trace = mask;    // 设置调用进程的syscall_trace掩码mask
+    return 0;
+}
+
+// 文件开头加上sysinfo结构体的头文件
+// 收集系统信息
+uint64
+sys_sysinfo(void) {
+    struct sysinfo info;
+    freebytes(&info.freemem);	  // 获取空闲内存，在 kalloc.c 中实现
+    procnum(&info.nproc);		    // 获取进程数量，在 proc.c 中实现
+
+    //获取用户虚拟地址
+    uint64 dstaddr;
+    argaddr(0, &dstaddr);
+
+    //从内核空间拷贝数据到用户空间
+    if (copyout(myproc()->pagetable, dstaddr, (char*)&info, sizeof info) < 0)
+        return -1;
+
+    return 0;
 }
